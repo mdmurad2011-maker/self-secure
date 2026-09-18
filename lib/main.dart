@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/app_lock_screen.dart';
+import 'screens/location_screen.dart';
 import 'screens/my_device_screen.dart';
 import 'screens/security_settings_screen.dart';
 
@@ -70,6 +71,14 @@ class SecurityHomePage extends StatelessWidget {
     );
   }
 
+  void _openLocation(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const LocationScreen(),
+      ),
+    );
+  }
+
   void _openSecuritySettings(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -84,7 +93,9 @@ class SecurityHomePage extends StatelessWidget {
   ) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$title module is coming next.'),
+        content: Text(
+          '$title module is coming next.',
+        ),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -132,7 +143,8 @@ class SecurityHomePage extends StatelessWidget {
             const SizedBox(width: 12),
 
             const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   'SELF SECURE',
@@ -201,7 +213,6 @@ class SecurityHomePage extends StatelessWidget {
 
               const SizedBox(height: 22),
 
-              // SECURITY STATUS
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -298,7 +309,6 @@ class SecurityHomePage extends StatelessWidget {
                 childAspectRatio: 1.15,
 
                 children: [
-                  // MY DEVICE
                   SecurityCard(
                     icon:
                         Icons.phone_android_rounded,
@@ -310,22 +320,17 @@ class SecurityHomePage extends StatelessWidget {
                     },
                   ),
 
-                  // LOCATION
                   SecurityCard(
                     icon:
                         Icons.location_on_rounded,
                     title: 'Location',
                     subtitle:
-                        'Authorized GPS',
+                        'Real-time GPS',
                     onTap: () {
-                      _showComingSoon(
-                        context,
-                        'Location',
-                      );
+                      _openLocation(context);
                     },
                   ),
 
-                  // SECURITY EVENTS
                   SecurityCard(
                     icon:
                         Icons.warning_amber_rounded,
@@ -340,9 +345,9 @@ class SecurityHomePage extends StatelessWidget {
                     },
                   ),
 
-                  // SETTINGS
                   SecurityCard(
-                    icon: Icons.settings_rounded,
+                    icon:
+                        Icons.settings_rounded,
                     title: 'Settings',
                     subtitle:
                         'Security controls',
@@ -357,7 +362,6 @@ class SecurityHomePage extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // QUICK SECURITY
               GestureDetector(
                 onTap: () {
                   _openSecuritySettings(context);
@@ -408,7 +412,9 @@ class SecurityHomePage extends StatelessWidget {
                                     FontWeight.w700,
                               ),
                             ),
+
                             SizedBox(height: 3),
+
                             Text(
                               'Open security controls',
                               style: TextStyle(
