@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/app_lock_screen.dart';
+import 'screens/security_settings_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,10 +59,20 @@ class _AppEntryState extends State<AppEntry> {
 class SecurityHomePage extends StatelessWidget {
   const SecurityHomePage({super.key});
 
+  void _openSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const SecuritySettingsScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF07111F),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF07111F),
         title: const Text(
           'SELF SECURE',
           style: TextStyle(
@@ -69,7 +80,6 @@ class SecurityHomePage extends StatelessWidget {
             letterSpacing: 1.2,
           ),
         ),
-        backgroundColor: const Color(0xFF07111F),
         actions: [
           IconButton(
             onPressed: () {},
@@ -133,9 +143,7 @@ class SecurityHomePage extends StatelessWidget {
                         size: 35,
                       ),
                     ),
-
                     SizedBox(width: 16),
-
                     Expanded(
                       child: Column(
                         crossAxisAlignment:
@@ -148,9 +156,7 @@ class SecurityHomePage extends StatelessWidget {
                               fontSize: 13,
                             ),
                           ),
-
                           SizedBox(height: 3),
-
                           Text(
                             'Protected',
                             style: TextStyle(
@@ -159,9 +165,7 @@ class SecurityHomePage extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-
                           SizedBox(height: 4),
-
                           Text(
                             'SELF SECURE is active.',
                             style: TextStyle(
@@ -196,29 +200,32 @@ class SecurityHomePage extends StatelessWidget {
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 childAspectRatio: 1.15,
-                children: const [
-                  SecurityCard(
+                children: [
+                  const SecurityCard(
                     icon: Icons.phone_android_rounded,
                     title: 'My Device',
                     subtitle: 'Device protection',
                   ),
 
-                  SecurityCard(
+                  const SecurityCard(
                     icon: Icons.location_on_rounded,
                     title: 'Location',
                     subtitle: 'Authorized GPS',
                   ),
 
-                  SecurityCard(
+                  const SecurityCard(
                     icon: Icons.warning_amber_rounded,
                     title: 'Security Events',
                     subtitle: 'View activity',
                   ),
 
-                  SecurityCard(
-                    icon: Icons.settings_rounded,
-                    title: 'Settings',
-                    subtitle: 'Security controls',
+                  GestureDetector(
+                    onTap: () => _openSettings(context),
+                    child: const SecurityCard(
+                      icon: Icons.settings_rounded,
+                      title: 'Settings',
+                      subtitle: 'Security controls',
+                    ),
                   ),
                 ],
               ),
