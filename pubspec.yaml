@@ -1,6 +1,7 @@
 name: self_secure
 description: "SELF SECURE - Personal Security & Device Protection"
 publish_to: "none"
+
 version: 1.0.0+1
 
 environment:
@@ -10,9 +11,20 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # iOS-style icons
   cupertino_icons: ^1.0.8
+
+  # Local security settings and PIN storage
   shared_preferences: ^2.5.3
+
+  # Fingerprint / Face ID / device authentication
   local_auth: ^2.3.0
+
+  # Device information
+  device_info_plus: ^11.5.0
+
+  # Battery information
+  battery_plus: ^6.2.2
 
 flutter:
   uses-material-design: true
