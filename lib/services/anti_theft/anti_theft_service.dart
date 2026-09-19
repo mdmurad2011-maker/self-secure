@@ -1,32 +1,63 @@
-﻿class AntiTheftService {
+﻿import '../security/security_alert_manager.dart';
+import '../security/security_event_factory.dart';
+import '../security/security_event_recorder.dart';
+import 'alarm_service.dart';
+
+class AntiTheftService {
+  AntiTheftService._();
+
+  static final AntiTheftService instance =
+      AntiTheftService._();
+
+  final AlarmService _alarm =
+      AlarmService.instance;
+
+  final SecurityAlertManager _alerts =
+      SecurityAlertManager.instance;
+
+  final SecurityEventRecorder _events =
+      SecurityEventRecorder.instance;
+
   bool _armed = false;
-  bool _lostMode = false;
 
   bool get isArmed => _armed;
-  bool get isLostMode => _lostMode;
 
   Future<void> arm() async {
+    if (_armed) return;
+
     _armed = true;
   }
 
   Future<void> disarm() async {
-    _armed = false;
-    _lostMode = false;
-  }
-
-  Future<void> enableLostMode() async {
-    _lostMode = true;
-    _armed = true;
-  }
-
-  Future<void> disableLostMode() async {
-    _lostMode = false;
-  }
-
-  Future<void> triggerTheftEvent() async {
     if (!_armed) return;
 
-    // Event handling is intentionally kept separate
-    // so the security event service can record it.
+    _armed = false;
+
+    await _alarm.stop();
+  }
+
+  Future<void> trigger({
+    String reason = 'Anti-theft event detected',
+  }) async {
+    if (!_armed) return;
+
+    await _alarm.start();
+
+    final event =
+        SecurityEventFactory.antiTheft(
+      reason: reason,
+    );
+
+    await _events.record(event);
+
+    await _alerts.antiTheftTriggered();
+  }
+
+  Future<void> testAlarm() {
+    return _alarm.start();
+  }
+
+  Future<void> stopAlarm() {
+    return _alarm.stop();
   }
 }

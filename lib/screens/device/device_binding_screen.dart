@@ -30,8 +30,7 @@ class _DeviceBindingScreenState
   }
 
   Future<void> _load() async {
-    final id =
-        await _service.getBindingId();
+    final id = await _service.getBindingId();
 
     if (!mounted) return;
 
@@ -42,14 +41,12 @@ class _DeviceBindingScreenState
   }
 
   Future<void> _bind() async {
-    final id =
-        widget.deviceId?.trim();
+    final id = widget.deviceId?.trim();
 
     if (id == null || id.isEmpty) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'No device ID is available.',
@@ -60,13 +57,27 @@ class _DeviceBindingScreenState
       return;
     }
 
-    await _service.bindDevice(id);
+    final success = await _service.bind(id);
+
+    if (!success) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Device binding failed.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
     await _load();
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
           'Device bound successfully.',
@@ -76,34 +87,24 @@ class _DeviceBindingScreenState
   }
 
   Future<void> _unbind() async {
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title:
-              const Text('Unbind Device'),
+          title: const Text('Unbind Device'),
           content: const Text(
             'Remove the current device binding?',
           ),
           actions: [
             TextButton(
               onPressed: () =>
-                  Navigator.pop(
-                context,
-                false,
-              ),
-              child:
-                  const Text('Cancel'),
+                  Navigator.pop(context, false),
+              child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () =>
-                  Navigator.pop(
-                context,
-                true,
-              ),
-              child:
-                  const Text('Unbind'),
+                  Navigator.pop(context, true),
+              child: const Text('Unbind'),
             ),
           ],
         );
@@ -112,8 +113,18 @@ class _DeviceBindingScreenState
 
     if (confirmed != true) return;
 
-    await _service.unbindDevice();
+    await _service.unbind();
     await _load();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Device unbound successfully.',
+        ),
+      ),
+    );
   }
 
   @override
@@ -121,8 +132,7 @@ class _DeviceBindingScreenState
     if (_loading) {
       return const Scaffold(
         body: Center(
-          child:
-              CircularProgressIndicator(),
+          child: CircularProgressIndicator(),
         ),
       );
     }
@@ -133,17 +143,14 @@ class _DeviceBindingScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text('Device Binding'),
+        title: const Text('Device Binding'),
       ),
       body: ListView(
-        padding:
-            const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         children: [
           Card(
             child: Padding(
-              padding:
-                  const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
                   Icon(
@@ -152,62 +159,46 @@ class _DeviceBindingScreenState
                         : Icons.link_off,
                     size: 64,
                   ),
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
                   Text(
                     bound
                         ? 'Device Bound'
                         : 'Device Not Bound',
-                    style:
-                        Theme.of(context)
-                            .textTheme
-                            .headlineSmall,
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall,
                   ),
-                  const SizedBox(
-                    height: 12,
-                  ),
+                  const SizedBox(height: 12),
                   Text(
                     bound
                         ? 'This SELF SECURE installation '
                           'has a local device binding.'
                         : 'Bind this installation to '
                           'the detected device.',
-                    textAlign:
-                        TextAlign.center,
+                    textAlign: TextAlign.center,
                   ),
                   if (bound) ...[
-                    const SizedBox(
-                      height: 20,
-                    ),
-                    SelectableText(
-                      _bindingId!,
-                    ),
+                    const SizedBox(height: 20),
+                    SelectableText(_bindingId!),
                   ],
                 ],
               ),
             ),
           ),
-          const SizedBox(
-            height: 16,
-          ),
+          const SizedBox(height: 16),
           if (!bound)
             FilledButton.icon(
               onPressed: _bind,
-              icon:
-                  const Icon(Icons.link),
-              label:
-                  const Text(
+              icon: const Icon(Icons.link),
+              label: const Text(
                 'Bind This Device',
               ),
             )
           else
             OutlinedButton.icon(
               onPressed: _unbind,
-              icon:
-                  const Icon(Icons.link_off),
-              label:
-                  const Text(
+              icon: const Icon(Icons.link_off),
+              label: const Text(
                 'Unbind Device',
               ),
             ),

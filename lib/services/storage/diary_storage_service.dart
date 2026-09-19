@@ -15,16 +15,27 @@ class DiaryStorageService {
     final values =
         prefs.getStringList(_key) ?? [];
 
-    return values.map((value) {
-      return DiaryEntry.fromJson(
-        jsonDecode(value)
-            as Map<String, dynamic>,
-      );
-    }).toList()
-      ..sort(
-        (a, b) =>
-            b.updatedAt.compareTo(a.updatedAt),
-      );
+    final entries = <DiaryEntry>[];
+
+    for (final value in values) {
+      try {
+        final decoded = jsonDecode(value);
+
+        if (decoded is Map<String, dynamic>) {
+          entries.add(
+            DiaryEntry.fromJson(decoded),
+          );
+        }
+      } catch (_) {
+        // Ignore invalid stored entries.
+      }
+    }
+
+    entries.sort(
+      (a, b) => b.createdAt.compareTo(a.createdAt),
+    );
+
+    return entries;
   }
 
   Future<void> saveEntry(
@@ -33,8 +44,7 @@ class DiaryStorageService {
     final prefs =
         await SharedPreferences.getInstance();
 
-    final entries =
-        await getEntries();
+    final entries = await getEntries();
 
     final index = entries.indexWhere(
       (item) => item.id == entry.id,
@@ -43,16 +53,18 @@ class DiaryStorageService {
     if (index >= 0) {
       entries[index] = entry;
     } else {
-      entries.add(entry);
+      entries.insert(0, entry);
     }
 
     await prefs.setStringList(
       _key,
-      entries.map(
-        (item) => jsonEncode(
-          item.toJson(),
-        ),
-      ).toList(),
+      entries
+          .map(
+            (item) => jsonEncode(
+              item.toJson(),
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -62,8 +74,7 @@ class DiaryStorageService {
     final prefs =
         await SharedPreferences.getInstance();
 
-    final entries =
-        await getEntries();
+    final entries = await getEntries();
 
     entries.removeWhere(
       (item) => item.id == id,
@@ -71,11 +82,20 @@ class DiaryStorageService {
 
     await prefs.setStringList(
       _key,
-      entries.map(
-        (item) => jsonEncode(
-          item.toJson(),
-        ),
-      ).toList(),
+      entries
+          .map(
+            (item) => jsonEncode(
+              item.toJson(),
+            ),
+          )
+          .toList(),
     );
+  }
+
+  Future<void> clearEntries() async {
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.remove(_key);
   }
 }

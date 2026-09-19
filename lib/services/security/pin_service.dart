@@ -1,44 +1,84 @@
-import 'package:shared_preferences/shared_preferences.dart';
+﻿import 'package:shared_preferences/shared_preferences.dart';
 
 class PinService {
-  static const String _key = 'security_pin';
+  PinService._();
+
+  static final PinService instance =
+      PinService._();
+
+  static const String _pinKey =
+      'self_secure_pin';
 
   Future<bool> hasPin() async {
-    final prefs = await SharedPreferences.getInstance();
-    final pin = prefs.getString(_key);
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    final pin = prefs.getString(_pinKey);
 
     return pin != null && pin.isNotEmpty;
   }
 
-  Future<String?> getPin() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_key);
-  }
+  Future<bool> setPin(String pin) async {
+    final value = pin.trim();
 
-  Future<bool> savePin(String pin) async {
-    if (!RegExp(r'^\d{4,6}$').hasMatch(pin)) {
+    if (!_isValidPin(value)) {
       return false;
     }
 
-    final prefs = await SharedPreferences.getInstance();
+    final prefs =
+        await SharedPreferences.getInstance();
 
-    return prefs.setString(_key, pin);
+    await prefs.setString(
+      _pinKey,
+      value,
+    );
+
+    return true;
   }
 
-  Future<bool> verify(String pin) async {
-    final saved = await getPin();
+  Future<bool> verifyPin(String pin) async {
+    final prefs =
+        await SharedPreferences.getInstance();
 
-    return saved != null && saved == pin;
+    final savedPin =
+        prefs.getString(_pinKey);
+
+    if (savedPin == null) {
+      return false;
+    }
+
+    return savedPin == pin.trim();
   }
 
-  Future<bool> change({
+  Future<void> clearPin() async {
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.remove(_pinKey);
+  }
+
+  Future<bool> changePin({
     required String currentPin,
     required String newPin,
   }) async {
-    if (!await verify(currentPin)) {
+    final valid =
+        await verifyPin(currentPin);
+
+    if (!valid) {
       return false;
     }
 
-    return savePin(newPin);
+    return setPin(newPin);
+  }
+
+  bool _isValidPin(String pin) {
+    if (pin.length < 4 ||
+        pin.length > 8) {
+      return false;
+    }
+
+    return RegExp(
+      r'^[0-9]+$',
+    ).hasMatch(pin);
   }
 }

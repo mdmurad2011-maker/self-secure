@@ -1,70 +1,82 @@
-﻿import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../models/location_model.dart';
+﻿import '../../models/location_model.dart';
+import 'location_storage_service.dart';
 
 class LocationHistoryService {
-  static const String _key =
-      'self_secure_location_history';
+  LocationHistoryService();
+
+  static final LocationHistoryService instance =
+      LocationHistoryService();
+
+  final LocationStorageService _storage =
+      LocationStorageService();
 
   Future<List<LocationModel>> getHistory() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+    final values = await _storage.read();
 
-    final values =
-        prefs.getStringList(_key) ?? [];
-
-    return values.map((value) {
-      return LocationModel.fromJson(
-        jsonDecode(value)
-            as Map<String, dynamic>,
-      );
-    }).toList()
-      ..sort(
-        (a, b) =>
-            b.timestamp.compareTo(
-          a.timestamp,
-        ),
-      );
+    return values
+        .map(
+          (item) => LocationModel.fromJson(
+            Map<String, dynamic>.from(item),
+          ),
+        )
+        .toList();
   }
 
-  Future<void> saveLocation(
-    LocationModel location,
-  ) async {
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    final history =
-        await getHistory();
-
-    history.removeWhere(
-      (item) => item.id == location.id,
-    );
-
-    history.insert(
-      0,
-      location,
-    );
-
-    // Keep local history bounded.
-    final limited =
-        history.take(500).toList();
-
-    await prefs.setStringList(
-      _key,
-      limited.map(
-        (item) => jsonEncode(
-          item.toJson(),
-        ),
-      ).toList(),
-    );
+  Future<List<LocationModel>> getAll() {
+    return getHistory();
   }
 
-  Future<void> clearHistory() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+  Future<void> add(LocationModel location) async {
+    await _storage.write(location.toJson());
+  }
 
-    await prefs.remove(_key);
+  Future<void> saveLocation(LocationModel location) async {
+    await add(location);
+  }
+
+  Future<List<LocationModel>> getBetween({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final values = await getHistory();
+
+    return values.where((location) {
+      return !location.timestamp.isBefore(from) &&
+          !location.timestamp.isAfter(to);
+    }).toList();
+  }
+
+  Future<LocationModel?> latest() async {
+    final values = await getHistory();
+
+    if (values.isEmpty) {
+      return null;
+    }
+
+    values.sort(
+      (a, b) => b.timestamp.compareTo(a.timestamp),
+    );
+
+    return values.first;
+  }
+
+  Future<void> clear() {
+    return _storage.clear();
+  }
+
+  Future<void> clearHistory() {
+    return clear();
+  }
+
+  Future<void> deleteLocation(String id) async {
+    final values = await getHistory();
+
+    values.removeWhere(
+      (location) => location.id == id,
+    );
+
+    await _storage.replace(
+      values.map((location) => location.toJson()).toList(),
+    );
   }
 }

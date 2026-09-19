@@ -1,10 +1,10 @@
 ﻿import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class LocalNotificationService {
+  LocalNotificationService._();
+
   static final LocalNotificationService instance =
       LocalNotificationService._();
-
-  LocalNotificationService._();
 
   final FlutterLocalNotificationsPlugin
       _plugin =
@@ -45,7 +45,7 @@ class LocalNotificationService {
         'self_secure_security',
         'SELF SECURE Security',
         channelDescription:
-            'Security alerts and notifications',
+            'SELF SECURE security notifications',
         importance: Importance.high,
         priority: Priority.high,
       ),
@@ -57,5 +57,17 @@ class LocalNotificationService {
       body,
       details,
     );
+  }
+
+  Future<void> cancel(int id) async {
+    await initialize();
+
+    await _plugin.cancel(id);
+  }
+
+  Future<void> cancelAll() async {
+    await initialize();
+
+    await _plugin.cancelAll();
   }
 }

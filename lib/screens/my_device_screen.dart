@@ -12,8 +12,9 @@ class MyDeviceScreen extends StatefulWidget {
 }
 
 class _MyDeviceScreenState extends State<MyDeviceScreen> {
-  final DeviceInfoService _deviceInfoService = DeviceInfoService();
-  final BatteryService _batteryService = BatteryService();
+  final DeviceInfoService _deviceInfoService =
+    DeviceInfoService.instance;
+  final BatteryService _batteryService = BatteryService.instance;
 
   String _model = 'Loading...';
   String _manufacturer = 'Loading...';
@@ -256,3 +257,4 @@ class _MyDeviceScreenState extends State<MyDeviceScreen> {
     );
   }
 }
+

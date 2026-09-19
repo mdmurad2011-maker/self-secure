@@ -1,49 +1,60 @@
 ﻿import 'package:geolocator/geolocator.dart';
 
 class GpsService {
-  Future<bool> isLocationAvailable() async {
-    final serviceEnabled =
-        await Geolocator.isLocationServiceEnabled();
+  GpsService();
 
-    if (!serviceEnabled) {
-      return false;
-    }
-
-    LocationPermission permission =
-        await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied) {
-      permission =
-          await Geolocator.requestPermission();
-    }
-
-    return permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse;
-  }
+  static final GpsService instance =
+      GpsService();
 
   Future<Position?> getCurrentPosition() async {
-    final available =
-        await isLocationAvailable();
+    try {
+      final enabled =
+          await Geolocator.isLocationServiceEnabled();
 
-    if (!available) {
+      if (!enabled) {
+        return null;
+      }
+
+      var permission =
+          await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission =
+            await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+    } catch (_) {
       return null;
     }
-
-    return Geolocator.getCurrentPosition(
-      locationSettings:
-          const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
-    );
   }
 
-  Stream<Position> positionStream() {
-    return Geolocator.getPositionStream(
-      locationSettings:
-          const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    );
+  Future<Position?> getCurrentLocation() {
+    return getCurrentPosition();
+  }
+
+  Future<bool> isAvailable() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        return false;
+      }
+
+      final permission =
+          await Geolocator.checkPermission();
+
+      return permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse;
+    } catch (_) {
+      return false;
+    }
   }
 }

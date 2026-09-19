@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../../core/location/location_manager.dart';
+import '../../models/location_model.dart';
 import '../../services/location/location_history_service.dart';
 
 class LocationScreen extends StatefulWidget {
@@ -20,7 +20,7 @@ class _LocationScreenState
   final LocationHistoryService _history =
       LocationHistoryService();
 
-  Position? _position;
+  LocationModel? _location;
   bool _loading = false;
   String? _error;
 
@@ -40,27 +40,12 @@ class _LocationScreenState
         );
       }
 
-      await _history.saveLocation(
-        location,
-      );
+      await _history.saveLocation(location);
 
       if (!mounted) return;
 
       setState(() {
-        _position = Position(
-          longitude: location.longitude,
-          latitude: location.latitude,
-          timestamp: location.timestamp,
-          accuracy: location.accuracy,
-          altitude: location.altitude,
-          altitudeAccuracy: 0,
-          heading: 0,
-          headingAccuracy: 0,
-          speed: 0,
-          speedAccuracy: 0,
-          floor: null,
-          isMocked: false,
-        );
+        _location = location;
         _loading = false;
       });
     } catch (e) {
@@ -75,78 +60,73 @@ class _LocationScreenState
 
   @override
   Widget build(BuildContext context) {
-    final position = _position;
+    final location = _location;
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text('My Current Location'),
+        title: const Text(
+          'My Current Location',
+        ),
       ),
       body: ListView(
-        padding:
-            const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         children: [
           Card(
             child: Padding(
-              padding:
-                  const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
                   const Icon(
                     Icons.location_on,
                     size: 64,
                   ),
-                  const SizedBox(
-                    height: 12,
-                  ),
+                  const SizedBox(height: 12),
                   Text(
-                    position == null
+                    location == null
                         ? 'Location not loaded'
                         : 'Location available',
-                    style:
-                        Theme.of(context)
-                            .textTheme
-                            .titleLarge,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge,
                   ),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  if (position != null) ...[
+                  const SizedBox(height: 20),
+
+                  if (location != null) ...[
                     _InfoRow(
                       title: 'Latitude',
-                      value:
-                          position.latitude
-                              .toStringAsFixed(6),
+                      value: location.latitude
+                          .toStringAsFixed(6),
                     ),
                     _InfoRow(
                       title: 'Longitude',
-                      value:
-                          position.longitude
-                              .toStringAsFixed(6),
+                      value: location.longitude
+                          .toStringAsFixed(6),
                     ),
                     _InfoRow(
                       title: 'Accuracy',
                       value:
-                          '${position.accuracy.toStringAsFixed(1)} m',
+                          '${location.accuracy.toStringAsFixed(1)} m',
                     ),
                     _InfoRow(
                       title: 'Altitude',
                       value:
-                          '${position.altitude.toStringAsFixed(1)} m',
+                          '${location.altitude.toStringAsFixed(1)} m',
+                    ),
+                    _InfoRow(
+                      title: 'Time',
+                      value:
+                          _formatDate(location.timestamp),
                     ),
                   ],
+
                   if (_error != null) ...[
-                    const SizedBox(
-                      height: 12,
-                    ),
+                    const SizedBox(height: 12),
                     Text(
                       _error!,
-                      style:
-                          TextStyle(
-                        color:
-                            Theme.of(context)
-                                .colorScheme
-                                .error,
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .error,
                       ),
                     ),
                   ],
@@ -154,14 +134,12 @@ class _LocationScreenState
               ),
             ),
           ),
-          const SizedBox(
-            height: 16,
-          ),
+
+          const SizedBox(height: 16),
+
           FilledButton.icon(
             onPressed:
-                _loading
-                    ? null
-                    : _getLocation,
+                _loading ? null : _getLocation,
             icon: _loading
                 ? const SizedBox(
                     width: 18,
@@ -184,6 +162,20 @@ class _LocationScreenState
       ),
     );
   }
+
+  String _formatDate(DateTime value) {
+    final local = value.toLocal();
+
+    String two(int number) =>
+        number.toString().padLeft(2, '0');
+
+    return '${local.year}-'
+        '${two(local.month)}-'
+        '${two(local.day)} '
+        '${two(local.hour)}:'
+        '${two(local.minute)}:'
+        '${two(local.second)}';
+  }
 }
 
 class _InfoRow extends StatelessWidget {
@@ -198,8 +190,7 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         vertical: 6,
       ),
       child: Row(
@@ -209,8 +200,7 @@ class _InfoRow extends StatelessWidget {
           ),
           Text(
             value,
-            textAlign:
-                TextAlign.right,
+            textAlign: TextAlign.right,
           ),
         ],
       ),

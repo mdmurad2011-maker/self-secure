@@ -15,6 +15,23 @@
     this.enabled = true,
   });
 
+  RouterDevice copyWith({
+    String? name,
+    String? host,
+    int? port,
+    String? username,
+    bool? enabled,
+  }) {
+    return RouterDevice(
+      id: id,
+      name: name ?? this.name,
+      host: host ?? this.host,
+      port: port ?? this.port,
+      username: username ?? this.username,
+      enabled: enabled ?? this.enabled,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -34,8 +51,7 @@
       name: json['name']?.toString() ?? '',
       host: json['host']?.toString() ?? '',
       port: (json['port'] as num?)?.toInt() ?? 80,
-      username:
-          json['username']?.toString() ?? '',
+      username: json['username']?.toString() ?? '',
       enabled: json['enabled'] as bool? ?? true,
     );
   }

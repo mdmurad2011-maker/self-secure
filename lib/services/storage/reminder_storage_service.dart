@@ -15,18 +15,23 @@ class ReminderStorageService {
     final values =
         prefs.getStringList(_key) ?? [];
 
-    return values.map((value) {
-      return ReminderModel.fromJson(
-        jsonDecode(value)
-            as Map<String, dynamic>,
-      );
-    }).toList()
-      ..sort(
-        (a, b) =>
-            a.scheduledAt.compareTo(
-          b.scheduledAt,
-        ),
-      );
+    final reminders = <ReminderModel>[];
+
+    for (final value in values) {
+      try {
+        final decoded = jsonDecode(value);
+
+        if (decoded is Map<String, dynamic>) {
+          reminders.add(
+            ReminderModel.fromJson(decoded),
+          );
+        }
+      } catch (_) {
+        // Ignore invalid stored entries.
+      }
+    }
+
+    return reminders;
   }
 
   Future<void> saveReminder(
@@ -35,8 +40,7 @@ class ReminderStorageService {
     final prefs =
         await SharedPreferences.getInstance();
 
-    final reminders =
-        await getReminders();
+    final reminders = await getReminders();
 
     final index = reminders.indexWhere(
       (item) => item.id == reminder.id,
@@ -50,11 +54,13 @@ class ReminderStorageService {
 
     await prefs.setStringList(
       _key,
-      reminders.map(
-        (item) => jsonEncode(
-          item.toJson(),
-        ),
-      ).toList(),
+      reminders
+          .map(
+            (item) => jsonEncode(
+              item.toJson(),
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -64,8 +70,7 @@ class ReminderStorageService {
     final prefs =
         await SharedPreferences.getInstance();
 
-    final reminders =
-        await getReminders();
+    final reminders = await getReminders();
 
     reminders.removeWhere(
       (item) => item.id == id,
@@ -73,11 +78,20 @@ class ReminderStorageService {
 
     await prefs.setStringList(
       _key,
-      reminders.map(
-        (item) => jsonEncode(
-          item.toJson(),
-        ),
-      ).toList(),
+      reminders
+          .map(
+            (item) => jsonEncode(
+              item.toJson(),
+            ),
+          )
+          .toList(),
     );
+  }
+
+  Future<void> clearReminders() async {
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.remove(_key);
   }
 }

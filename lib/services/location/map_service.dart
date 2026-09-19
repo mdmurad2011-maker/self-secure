@@ -1,25 +1,48 @@
 ﻿import 'package:geolocator/geolocator.dart';
 
 class MapService {
-  String buildGoogleMapsUrl(
-    double latitude,
-    double longitude,
-  ) {
-    return 'https://www.google.com/maps/search/?api=1'
-        '&query=$latitude,$longitude';
-  }
-
-  double distanceInMeters(
-    double startLatitude,
-    double startLongitude,
-    double endLatitude,
-    double endLongitude,
-  ) {
+  double distanceInMeters({
+    required double startLatitude,
+    required double startLongitude,
+    required double endLatitude,
+    required double endLongitude,
+  }) {
     return Geolocator.distanceBetween(
       startLatitude,
       startLongitude,
       endLatitude,
       endLongitude,
     );
+  }
+
+  double bearing({
+    required double startLatitude,
+    required double startLongitude,
+    required double endLatitude,
+    required double endLongitude,
+  }) {
+    return Geolocator.bearingBetween(
+      startLatitude,
+      startLongitude,
+      endLatitude,
+      endLongitude,
+    );
+  }
+
+  String formatDistance(
+    double meters,
+  ) {
+    if (meters < 1000) {
+      return '${meters.round()} m';
+    }
+
+    return '${(meters / 1000).toStringAsFixed(2)} km';
+  }
+
+  String formatCoordinates(
+    Position position,
+  ) {
+    return '${position.latitude.toStringAsFixed(6)}, '
+        '${position.longitude.toStringAsFixed(6)}';
   }
 }

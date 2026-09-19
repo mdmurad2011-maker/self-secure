@@ -3,27 +3,46 @@ import '../../services/device/battery_service.dart';
 import '../../services/device/device_info_service.dart';
 
 class DeviceManager {
+  DeviceManager._();
+
+  static final DeviceManager instance =
+      DeviceManager._();
+
   final DeviceInfoService _deviceInfo =
-      DeviceInfoService();
+      DeviceInfoService.instance;
 
   final BatteryService _battery =
-      BatteryService();
+      BatteryService.instance;
 
   Future<DeviceModel> getDeviceInfo() async {
+    final info =
+        await _deviceInfo.getInfo();
+
     return DeviceModel(
-      model: await _deviceInfo.getModel(),
+      model:
+          info['model']?.toString() ??
+              'Unknown Device',
+
       manufacturer:
-          await _deviceInfo.getManufacturer(),
+          info['manufacturer']?.toString() ??
+              'Unknown Manufacturer',
+
       androidVersion:
-          await _deviceInfo.getAndroidVersion(),
+          info['androidVersion']?.toString() ??
+              'Unknown Android',
+
       deviceId:
-          await _deviceInfo.getDeviceId(),
+          info['device']?.toString() ??
+              'Unknown Device ID',
+
       batteryLevel:
           await _battery.getLevel(),
+
       isCharging:
           await _battery.isCharging(),
+
       securityPatch:
-          await _deviceInfo.getSecurityPatch(),
+          'Not available',
     );
   }
 }

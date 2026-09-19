@@ -16,11 +16,10 @@ class SelfSecureApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SELF SECURE',
       debugShowCheckedModeBanner: false,
+      title: 'SELF SECURE',
       theme: ThemeData(
         useMaterial3: true,
-        brightness: Brightness.dark,
       ),
       home: const SelfSecureHome(),
     );

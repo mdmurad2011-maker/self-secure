@@ -15,14 +15,16 @@
     required this.timestamp,
   });
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'latitude': latitude,
-    'longitude': longitude,
-    'accuracy': accuracy,
-    'altitude': altitude,
-    'timestamp': timestamp.toIso8601String(),
-  };
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'latitude': latitude,
+      'longitude': longitude,
+      'accuracy': accuracy,
+      'altitude': altitude,
+      'timestamp': timestamp.toIso8601String(),
+    };
+  }
 
   factory LocationModel.fromJson(
     Map<String, dynamic> json,
@@ -30,22 +32,18 @@
     return LocationModel(
       id: json['id']?.toString() ?? '',
       latitude:
-          (json['latitude'] as num?)?.toDouble() ??
-          0,
+          (json['latitude'] as num?)?.toDouble() ?? 0,
       longitude:
-          (json['longitude'] as num?)?.toDouble() ??
-          0,
+          (json['longitude'] as num?)?.toDouble() ?? 0,
       accuracy:
-          (json['accuracy'] as num?)?.toDouble() ??
-          0,
+          (json['accuracy'] as num?)?.toDouble() ?? 0,
       altitude:
-          (json['altitude'] as num?)?.toDouble() ??
-          0,
+          (json['altitude'] as num?)?.toDouble() ?? 0,
       timestamp:
           DateTime.tryParse(
-            json['timestamp']?.toString() ?? '',
-          ) ??
-          DateTime.now(),
+                json['timestamp']?.toString() ?? '',
+              ) ??
+              DateTime.now(),
     );
   }
 }

@@ -11,13 +11,12 @@ class AntiTheftScreen extends StatefulWidget {
       _AntiTheftScreenState();
 }
 
-class _AntiTheftScreenState
-    extends State<AntiTheftScreen> {
+class _AntiTheftScreenState extends State<AntiTheftScreen> {
   final LostModeService _lostModeService =
-      LostModeService();
+      LostModeService.instance;
 
   final AlarmService _alarmService =
-      AlarmService();
+      AlarmService.instance;
 
   bool _lostModeEnabled = false;
   bool _alarmRunning = false;
@@ -28,7 +27,7 @@ class _AntiTheftScreenState
     if (!mounted) return;
 
     setState(() {
-      _lostModeEnabled = true;
+      _lostModeEnabled = _lostModeService.isEnabled;
     });
   }
 
@@ -38,28 +37,36 @@ class _AntiTheftScreenState
     if (!mounted) return;
 
     setState(() {
-      _lostModeEnabled = false;
+      _lostModeEnabled = _lostModeService.isEnabled;
     });
   }
 
   Future<void> _startAlarm() async {
-    await _alarmService.startAlarm();
+    await _alarmService.start();
 
     if (!mounted) return;
 
     setState(() {
-      _alarmRunning = true;
+      _alarmRunning = _alarmService.isRunning;
     });
   }
 
   Future<void> _stopAlarm() async {
-    await _alarmService.stopAlarm();
+    await _alarmService.stop();
 
     if (!mounted) return;
 
     setState(() {
-      _alarmRunning = false;
+      _alarmRunning = _alarmService.isRunning;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    _lostModeEnabled = _lostModeService.isEnabled;
+    _alarmRunning = _alarmService.isRunning;
   }
 
   @override
@@ -73,17 +80,16 @@ class _AntiTheftScreenState
         children: [
           Card(
             child: SwitchListTile(
-              title:
-                  const Text('Lost Mode'),
+              title: const Text('Lost Mode'),
               subtitle: const Text(
                 'Protect this device when it is lost.',
               ),
               value: _lostModeEnabled,
-              onChanged: (value) {
+              onChanged: (value) async {
                 if (value) {
-                  _enableLostMode();
+                  await _enableLostMode();
                 } else {
-                  _disableLostMode();
+                  await _disableLostMode();
                 }
               },
             ),

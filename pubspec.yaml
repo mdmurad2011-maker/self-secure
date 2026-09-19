@@ -1,4 +1,4 @@
-﻿name: self_secure
+name: self_secure
 description: "SELF SECURE - Personal Security & Device Protection"
 publish_to: "none"
 
@@ -29,6 +29,7 @@ dependencies:
   geolocator: ^14.0.2
   permission_handler: ^12.0.1
   flutter_local_notifications: ^19.4.2
+  flutter_secure_storage: ^10.3.4
 
 dev_dependencies:
   flutter_test:
@@ -38,3 +39,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/icons/self_secure_icon.png
+    - assets/logos/self_secure_logo.png

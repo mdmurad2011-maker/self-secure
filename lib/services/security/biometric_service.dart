@@ -1,6 +1,11 @@
-import 'package:local_auth/local_auth.dart';
+﻿import 'package:local_auth/local_auth.dart';
 
 class BiometricService {
+  BiometricService._();
+
+  static final BiometricService instance =
+      BiometricService._();
+
   final LocalAuthentication _auth =
       LocalAuthentication();
 
@@ -10,6 +15,18 @@ class BiometricService {
           await _auth.isDeviceSupported();
     } catch (_) {
       return false;
+    }
+  }
+
+  Future<List<BiometricType>> availableBiometrics() async {
+    try {
+      if (!await isAvailable()) {
+        return <BiometricType>[];
+      }
+
+      return await _auth.getAvailableBiometrics();
+    } catch (_) {
+      return <BiometricType>[];
     }
   }
 
@@ -31,5 +48,12 @@ class BiometricService {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<bool> hasFingerprintOrFace() async {
+    final biometrics =
+        await availableBiometrics();
+
+    return biometrics.isNotEmpty;
   }
 }

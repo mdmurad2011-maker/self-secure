@@ -15,12 +15,23 @@ class PrivateWebsiteStorage {
     final values =
         prefs.getStringList(_key) ?? [];
 
-    return values.map((value) {
-      return PrivateWebsite.fromJson(
-        jsonDecode(value)
-            as Map<String, dynamic>,
-      );
-    }).toList();
+    final websites = <PrivateWebsite>[];
+
+    for (final value in values) {
+      try {
+        final decoded = jsonDecode(value);
+
+        if (decoded is Map<String, dynamic>) {
+          websites.add(
+            PrivateWebsite.fromJson(decoded),
+          );
+        }
+      } catch (_) {
+        // Ignore invalid stored entries.
+      }
+    }
+
+    return websites;
   }
 
   Future<void> saveWebsite(
@@ -29,8 +40,7 @@ class PrivateWebsiteStorage {
     final prefs =
         await SharedPreferences.getInstance();
 
-    final websites =
-        await getWebsites();
+    final websites = await getWebsites();
 
     final index = websites.indexWhere(
       (item) => item.id == website.id,
@@ -44,11 +54,13 @@ class PrivateWebsiteStorage {
 
     await prefs.setStringList(
       _key,
-      websites.map(
-        (item) => jsonEncode(
-          item.toJson(),
-        ),
-      ).toList(),
+      websites
+          .map(
+            (item) => jsonEncode(
+              item.toJson(),
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -58,8 +70,7 @@ class PrivateWebsiteStorage {
     final prefs =
         await SharedPreferences.getInstance();
 
-    final websites =
-        await getWebsites();
+    final websites = await getWebsites();
 
     websites.removeWhere(
       (item) => item.id == id,
@@ -67,11 +78,20 @@ class PrivateWebsiteStorage {
 
     await prefs.setStringList(
       _key,
-      websites.map(
-        (item) => jsonEncode(
-          item.toJson(),
-        ),
-      ).toList(),
+      websites
+          .map(
+            (item) => jsonEncode(
+              item.toJson(),
+            ),
+          )
+          .toList(),
     );
+  }
+
+  Future<void> clearWebsites() async {
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.remove(_key);
   }
 }

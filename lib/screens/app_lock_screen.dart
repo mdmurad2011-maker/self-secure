@@ -1,6 +1,8 @@
+﻿import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/security/app_lock_controller.dart';
 
 class AppLockScreen extends StatefulWidget {
   final VoidCallback onUnlocked;
@@ -11,17 +13,23 @@ class AppLockScreen extends StatefulWidget {
   });
 
   @override
-  State<AppLockScreen> createState() => _AppLockScreenState();
+  State<AppLockScreen> createState() =>
+      _AppLockScreenState();
 }
 
 class _AppLockScreenState extends State<AppLockScreen> {
-  final LocalAuthentication _auth = LocalAuthentication();
+  final AppLockController _controller =
+      AppLockController.instance;
 
   String _pin = '';
-  String _savedPin = '';
   bool _biometricAvailable = false;
   bool _loading = true;
+  bool _busy = false;
+  bool _lockedOut = false;
   String _message = '';
+  Duration? _remaining;
+
+  Timer? _lockoutTimer;
 
   @override
   void initState() {
@@ -29,40 +37,91 @@ class _AppLockScreenState extends State<AppLockScreen> {
     _loadSecurity();
   }
 
+  @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _loadSecurity() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    String? savedPin = prefs.getString('security_pin');
-
-    if (savedPin == null || savedPin.isEmpty) {
-      savedPin = '1234';
-
-      await prefs.setString(
-        'security_pin',
-        savedPin,
-      );
-    }
-
-    bool biometric = false;
-
     try {
-      biometric = await _auth.canCheckBiometrics &&
-          await _auth.isDeviceSupported();
+      final biometric =
+          await _controller.canUseBiometric();
+
+      final locked =
+          await _controller.isLockoutActive();
+
+      final remaining =
+          await _controller.remainingLockTime();
+
+      if (!mounted) return;
+
+      setState(() {
+        _biometricAvailable = biometric;
+        _lockedOut = locked;
+        _remaining = remaining;
+        _loading = false;
+      });
+
+      if (locked) {
+        _startLockoutTimer();
+      }
     } catch (_) {
-      biometric = false;
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+        _biometricAvailable = false;
+      });
     }
+  }
 
-    if (!mounted) return;
+  void _startLockoutTimer() {
+    _lockoutTimer?.cancel();
 
-    setState(() {
-      _savedPin = savedPin!;
-      _biometricAvailable = biometric;
-      _loading = false;
-    });
+    _lockoutTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) async {
+        final remaining =
+            await _controller.remainingLockTime();
+
+        if (!mounted) return;
+
+        if (remaining == null) {
+          _lockoutTimer?.cancel();
+
+          setState(() {
+            _lockedOut = false;
+            _remaining = null;
+            _message = '';
+          });
+
+          return;
+        }
+
+        setState(() {
+          _lockedOut = true;
+          _remaining = remaining;
+          _pin = '';
+        });
+      },
+    );
+  }
+
+  String _formatRemaining(Duration duration) {
+    final minutes =
+        duration.inMinutes.remainder(60);
+    final seconds =
+        duration.inSeconds.remainder(60);
+
+    return '${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
   }
 
   void _addNumber(String number) {
-    if (_pin.length >= 6) return;
+    if (_busy || _lockedOut) return;
+
+    if (_pin.length >= 8) return;
 
     setState(() {
       _pin += number;
@@ -75,50 +134,116 @@ class _AppLockScreenState extends State<AppLockScreen> {
   }
 
   void _removeNumber() {
-    if (_pin.isEmpty) return;
+    if (_busy || _lockedOut || _pin.isEmpty) {
+      return;
+    }
 
     setState(() {
-      _pin = _pin.substring(0, _pin.length - 1);
+      _pin =
+          _pin.substring(0, _pin.length - 1);
       _message = '';
     });
   }
 
-  void _checkPin() {
-    if (_pin == _savedPin) {
+  Future<void> _checkPin() async {
+    if (_busy ||
+        _lockedOut ||
+        _pin.length < 4) {
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _message = '';
+    });
+
+    final unlocked =
+        await _controller.verifyPin(_pin);
+
+    if (!mounted) return;
+
+    if (unlocked) {
       widget.onUnlocked();
+      return;
+    }
+
+    final locked =
+        await _controller.isLockoutActive();
+
+    final remaining =
+        await _controller.remainingLockTime();
+
+    final attempts =
+        await _controller.failedAttempts();
+
+    if (locked) {
+      setState(() {
+        _pin = '';
+        _busy = false;
+        _lockedOut = true;
+        _remaining = remaining;
+        _message =
+            'Too many failed attempts';
+      });
+
+      _startLockoutTimer();
       return;
     }
 
     setState(() {
       _pin = '';
-      _message = 'Incorrect PIN';
+      _busy = false;
+      _message =
+          'Incorrect PIN • Attempt $attempts/5';
     });
   }
 
   Future<void> _authenticateWithBiometric() async {
-    if (!_biometricAvailable) return;
-
-    try {
-      final authenticated = await _auth.authenticate(
-        localizedReason:
-            'Authenticate to open SELF SECURE',
-        options: const AuthenticationOptions(
-          biometricOnly: false,
-          stickyAuth: true,
-          useErrorDialogs: true,
-        ),
-      );
-
-      if (authenticated && mounted) {
-        widget.onUnlocked();
-      }
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _message = 'Biometric authentication failed';
-      });
+    if (_busy ||
+        _lockedOut ||
+        !_biometricAvailable) {
+      return;
     }
+
+    setState(() {
+      _busy = true;
+      _message = '';
+    });
+
+    final authenticated =
+        await _controller.unlockWithBiometric();
+
+    if (!mounted) return;
+
+    if (authenticated) {
+      widget.onUnlocked();
+      return;
+    }
+
+    final locked =
+        await _controller.isLockoutActive();
+
+    final remaining =
+        await _controller.remainingLockTime();
+
+    if (locked) {
+      setState(() {
+        _busy = false;
+        _lockedOut = true;
+        _remaining = remaining;
+        _message =
+            'Too many failed attempts';
+      });
+
+      _startLockoutTimer();
+      return;
+    }
+
+    setState(() {
+      _busy = false;
+      _message =
+          'Biometric authentication failed';
+    });
   }
 
   Widget _pinButton(String value) {
@@ -126,12 +251,22 @@ class _AppLockScreenState extends State<AppLockScreen> {
       width: 72,
       height: 58,
       child: FilledButton(
-        onPressed: () => _addNumber(value),
+        onPressed:
+            (_busy || _lockedOut)
+                ? null
+                : () => _addNumber(value),
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFF101D2D),
+          backgroundColor:
+              const Color(0xFF101D2D),
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+          disabledBackgroundColor:
+              const Color(0xFF101D2D),
+          disabledForegroundColor:
+              Colors.white38,
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(18),
             side: const BorderSide(
               color: Color(0x1FD9A441),
             ),
@@ -154,7 +289,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
     String c,
   ) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment:
+          MainAxisAlignment.center,
       children: [
         _pinButton(a),
         const SizedBox(width: 12),
@@ -169,7 +305,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(
-        backgroundColor: Color(0xFF07111F),
+        backgroundColor:
+            Color(0xFF07111F),
         body: Center(
           child: CircularProgressIndicator(
             color: Color(0xFFFFD66B),
@@ -179,11 +316,13 @@ class _AppLockScreenState extends State<AppLockScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF07111F),
+      backgroundColor:
+          const Color(0xFF07111F),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 24,
               vertical: 30,
             ),
@@ -192,13 +331,16 @@ class _AppLockScreenState extends State<AppLockScreen> {
                 Container(
                   width: 86,
                   height: 86,
-                  decoration: BoxDecoration(
+                  decoration:
+                      BoxDecoration(
                     borderRadius:
                         BorderRadius.circular(27),
                     gradient:
                         const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                      begin:
+                          Alignment.topLeft,
+                      end:
+                          Alignment.bottomRight,
                       colors: [
                         Color(0xFFFFD66B),
                         Color(0xFF9B6A18),
@@ -206,7 +348,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
                     ),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x66D9A441),
+                        color:
+                            Color(0x66D9A441),
                         blurRadius: 25,
                       ),
                     ],
@@ -214,7 +357,8 @@ class _AppLockScreenState extends State<AppLockScreen> {
                   child: const Icon(
                     Icons.lock_rounded,
                     size: 43,
-                    color: Color(0xFF07111F),
+                    color:
+                        Color(0xFF07111F),
                   ),
                 ),
 
@@ -223,17 +367,21 @@ class _AppLockScreenState extends State<AppLockScreen> {
                 const Text(
                   'SELF SECURE',
                   style: TextStyle(
+                    color: Colors.white,
                     fontSize: 27,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                     letterSpacing: 1.5,
                   ),
                 ),
 
                 const SizedBox(height: 8),
 
-                const Text(
-                  'Enter your security PIN',
-                  style: TextStyle(
+                Text(
+                  _lockedOut
+                      ? 'Security lockout active'
+                      : 'Enter your security PIN',
+                  style: const TextStyle(
                     color: Colors.white60,
                     fontSize: 14,
                   ),
@@ -241,124 +389,186 @@ class _AppLockScreenState extends State<AppLockScreen> {
 
                 const SizedBox(height: 28),
 
-                Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
-                  children: List.generate(
-                    4,
-                    (index) {
-                      final filled =
-                          index < _pin.length;
-
-                      return Container(
-                        margin:
-                            const EdgeInsets.symmetric(
-                          horizontal: 7,
-                        ),
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: filled
-                              ? const Color(0xFFFFD66B)
-                              : const Color(0xFF243449),
-                          boxShadow: filled
-                              ? const [
-                                  BoxShadow(
-                                    color:
-                                        Color(0x66D9A441),
-                                    blurRadius: 8,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                      );
-                    },
+                if (_lockedOut &&
+                    _remaining != null) ...[
+                  const Icon(
+                    Icons.lock_clock_rounded,
+                    color:
+                        Color(0xFFFFD66B),
+                    size: 42,
                   ),
-                ),
 
-                const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                SizedBox(
-                  height: 25,
-                  child: Text(
-                    _message,
+                  Text(
+                    _formatRemaining(
+                      _remaining!,
+                    ),
                     style: const TextStyle(
-                      color: Colors.redAccent,
+                      color:
+                          Color(0xFFFFD66B),
+                      fontSize: 30,
+                      fontWeight:
+                          FontWeight.w800,
+                      letterSpacing: 2,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  const Text(
+                    'Please wait before trying again',
+                    style: TextStyle(
+                      color: Colors.white54,
                       fontSize: 13,
                     ),
                   ),
-                ),
+                ] else ...[
+                  Row(
+                    mainAxisAlignment:
+                        MainAxisAlignment.center,
+                    children:
+                        List.generate(
+                      4,
+                      (index) {
+                        final filled =
+                            index < _pin.length;
 
-                const SizedBox(height: 15),
-
-                _pinRow('1', '2', '3'),
-
-                const SizedBox(height: 12),
-
-                _pinRow('4', '5', '6'),
-
-                const SizedBox(height: 12),
-
-                _pinRow('7', '8', '9'),
-
-                const SizedBox(height: 12),
-
-                Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(width: 72),
-
-                    const SizedBox(width: 12),
-
-                    _pinButton('0'),
-
-                    const SizedBox(width: 12),
-
-                    SizedBox(
-                      width: 72,
-                      height: 58,
-                      child: FilledButton(
-                        onPressed: _removeNumber,
-                        style: FilledButton.styleFrom(
-                          backgroundColor:
-                              const Color(0xFF101D2D),
-                          foregroundColor:
-                              Colors.white,
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(18),
+                        return Container(
+                          margin:
+                              const EdgeInsets
+                                  .symmetric(
+                            horizontal: 7,
                           ),
-                        ),
-                        child: const Icon(
-                          Icons.backspace_outlined,
-                        ),
-                      ),
+                          width: 14,
+                          height: 14,
+                          decoration:
+                              BoxDecoration(
+                            shape:
+                                BoxShape.circle,
+                            color: filled
+                                ? const Color(
+                                    0xFFFFD66B)
+                                : const Color(
+                                    0xFF243449),
+                          ),
+                        );
+                      },
                     ),
-                  ],
-                ),
+                  ),
 
-                const SizedBox(height: 25),
+                  const SizedBox(height: 10),
 
-                if (_biometricAvailable)
-                  TextButton.icon(
-                    onPressed:
-                        _authenticateWithBiometric,
-                    icon: const Icon(
-                      Icons.fingerprint_rounded,
-                      color: Color(0xFFFFD66B),
-                      size: 28,
-                    ),
-                    label: const Text(
-                      'Use Biometrics',
-                      style: TextStyle(
-                        color: Color(0xFFFFD66B),
-                        fontWeight: FontWeight.w600,
+                  SizedBox(
+                    height: 25,
+                    child: Text(
+                      _message,
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.redAccent,
+                        fontSize: 13,
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 15),
+
+                  _pinRow('1', '2', '3'),
+                  const SizedBox(height: 12),
+                  _pinRow('4', '5', '6'),
+                  const SizedBox(height: 12),
+                  _pinRow('7', '8', '9'),
+
+                  const SizedBox(height: 12),
+
+                  Row(
+                    mainAxisAlignment:
+                        MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(width: 72),
+                      const SizedBox(width: 12),
+
+                      _pinButton('0'),
+
+                      const SizedBox(width: 12),
+
+                      SizedBox(
+                        width: 72,
+                        height: 58,
+                        child: FilledButton(
+                          onPressed:
+                              (_busy ||
+                                      _lockedOut)
+                                  ? null
+                                  : _removeNumber,
+                          style:
+                              FilledButton.styleFrom(
+                            backgroundColor:
+                                const Color(
+                              0xFF101D2D,
+                            ),
+                            foregroundColor:
+                                Colors.white,
+                            shape:
+                                RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                18,
+                              ),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons
+                                .backspace_outlined,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  if (_biometricAvailable)
+                    TextButton.icon(
+                      onPressed:
+                          (_busy ||
+                                  _lockedOut)
+                              ? null
+                              : _authenticateWithBiometric,
+                      icon: const Icon(
+                        Icons
+                            .fingerprint_rounded,
+                        color:
+                            Color(0xFFFFD66B),
+                        size: 28,
+                      ),
+                      label: const Text(
+                        'Use Biometrics',
+                        style: TextStyle(
+                          color:
+                              Color(0xFFFFD66B),
+                          fontWeight:
+                              FontWeight.w600,
+                        ),
+                      ),
+                    ),
+
+                  if (_busy)
+                    const Padding(
+                      padding:
+                          EdgeInsets.only(
+                        top: 8,
+                      ),
+                      child:
+                          CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color:
+                            Color(0xFFFFD66B),
+                      ),
+                    ),
+                ],
               ],
             ),
           ),
